@@ -13,19 +13,6 @@ export function fromNodeHeaders(object: NodeHeaders): Headers {
   return headers
 }
 
-export function toNodeHeaders(headers?: Headers): NodeHeaders {
-  const result: NodeHeaders = {}
-  if (headers) {
-    for (const [key, value] of headers.entries()) {
-      result[key] = value
-      if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
-      }
-    }
-  }
-  return result
-}
-
 /*
   Set-Cookie header field-values are sometimes comma joined in one string. This splits them without choking on commas
   that are within a single set-cookie field-value, such as in the Expires portion.
@@ -102,6 +89,19 @@ export function splitCookiesString(cookiesString: string) {
   return cookiesStrings
 }
 
+export function toNodeHeaders(headers?: Headers): NodeHeaders {
+  const result: NodeHeaders = {}
+  if (headers) {
+    for (const [key, value] of headers.entries()) {
+      result[key] = value
+      if (key.toLowerCase() === 'set-cookie') {
+        result[key] = splitCookiesString(value)
+      }
+    }
+  }
+  return result
+}
+
 /**
  * Validate the correctness of a user-provided URL.
  */
@@ -110,7 +110,9 @@ export function validateURL(url: string | URL): string {
     return String(new URL(String(url)))
   } catch (error: any) {
     throw new Error(
-      `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
+      `URL is malformed "${String(
+        url
+      )}". Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
       { cause: error }
     )
   }
