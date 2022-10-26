@@ -3,32 +3,18 @@ import { PassThrough, Readable } from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
+  KUint8Array: typeof Uint8Array,
   stream: Readable
 ) {
   return new context.ReadableStream({
     start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk))
+      stream.on('data', (chunk) =>
+        controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
+      )
       stream.on('end', () => controller.close())
       stream.on('error', (err) => controller.error(err))
     },
   })
-}
-
-export function bodyStreamToNodeStream(
-  bodyStream: ReadableStream<Uint8Array>
-): Readable {
-  const reader = bodyStream.getReader()
-  return Readable.from(
-    (async function* () {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          return
-        }
-        yield value
-      }
-    })()
-  )
 }
 
 function replaceRequestBody<T extends IncomingMessage>(
@@ -56,9 +42,13 @@ export function getClonableBody<T extends IncomingMessage>(
 ): ClonableBody {
   let buffered: Readable | null = null
 
-  const endPromise = new Promise((resolve, reject) => {
-    readable.on('end', resolve)
-    readable.on('error', reject)
+  const endPromise = new Promise<void | { error?: unknown }>(
+    (resolve, reject) => {
+      readable.on('end', resolve)
+      readable.on('error', reject)
+    }
+  ).catch((error) => {
+    return { error }
   })
 
   return {
@@ -69,7 +59,11 @@ export function getClonableBody<T extends IncomingMessage>(
      */
     async finalize(): Promise<void> {
       if (buffered) {
-        await endPromise
+        const res = await endPromise
+
+        if (res && typeof res === 'object' && res.error) {
+          throw res.error
+        }
         replaceRequestBody(readable, buffered)
         buffered = readable
       }
@@ -82,8 +76,14 @@ export function getClonableBody<T extends IncomingMessage>(
       const input = buffered ?? readable
       const p1 = new PassThrough()
       const p2 = new PassThrough()
-      input.pipe(p1)
-      input.pipe(p2)
+      input.on('data', (chunk) => {
+        p1.push(chunk)
+        p2.push(chunk)
+      })
+      input.on('end', () => {
+        p1.push(null)
+        p2.push(null)
+      })
       buffered = p2
       return p1
     },

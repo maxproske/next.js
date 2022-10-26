@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import type { FocusAndScrollRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
@@ -12,7 +14,7 @@ export type CacheNode = {
    * In-flight request for this node.
    */
   data: ReturnType<
-    typeof import('../../client/components/app-router.client').fetchServerResponse
+    typeof import('../../client/components/app-router').fetchServerResponse
   > | null
   /**
    * React Component for this node.
@@ -24,35 +26,37 @@ export type CacheNode = {
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
-export type AppRouterInstance = {
+interface NavigateOptions {
+  forceOptimisticNavigation?: boolean
+}
+
+export interface AppRouterInstance {
   /**
-   * Reload the current page. Fetches new data from the server.
+   * Navigate to the previous history entry.
    */
-  reload(): void
+  back(): void
   /**
-   * Hard navigate to the provided href. Fetches new data from the server.
+   * Navigate to the next history entry.
+   */
+  forward(): void
+  /**
+   * Refresh the current page.
+   */
+  refresh(): void
+  /**
+   * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string): void
+  push(href: string, options?: NavigateOptions): void
   /**
-   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
-   * Pushes a new history entry.
-   */
-  softPush(href: string): void
-  /**
-   * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string): void
+  replace(href: string, options?: NavigateOptions): void
   /**
-   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
-   * Replaces the current history entry.
+   * Prefetch the provided href.
    */
-  softReplace(href: string): void
-  /**
-   * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
-   */
-  prefetch(href: string): Promise<void>
+  prefetch(href: string): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance>(
@@ -62,19 +66,22 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-  stylesheets?: string[]
 }>(null as any)
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
-    flightData: FlightData
+    flightData: FlightData,
+    overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
+
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
 }

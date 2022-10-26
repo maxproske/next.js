@@ -1,86 +1,160 @@
-import type webpack from 'webpack5'
+import type webpack from 'webpack'
+import chalk from 'next/dist/compiled/chalk'
+import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
+import { sep } from 'path'
+import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import * as Log from '../../../build/output/log'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
+
+export const FILE_TYPES = {
+  layout: 'layout',
+  template: 'template',
+  error: 'error',
+  loading: 'loading',
+  head: 'head',
+  'not-found': 'not-found',
+} as const
+
+// TODO-APP: check if this can be narrowed.
+type ComponentModule = () => any
+export type ComponentsType = {
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+} & {
+  readonly layoutOrPagePath?: string
+  readonly page?: ComponentModule
+}
 
 async function createTreeCodeFromPath({
   pagePath,
   resolve,
-  removeExt,
+  resolveParallelSegments,
 }: {
   pagePath: string
   resolve: (pathname: string) => Promise<string | undefined>
-  removeExt: (pathToRemoveExtensions: string) => string
+  resolveParallelSegments: (
+    pathname: string
+  ) => [key: string, segment: string][]
 }) {
-  let tree: undefined | string
-  const splittedPath = pagePath.split('/')
+  const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
+  const pages: string[] = []
+  let rootLayout: string | undefined
 
-  const segments = ['', ...splittedPath.slice(1)]
-
-  // segment.length - 1 because arrays start at 0 and we're decrementing
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const segment = removeExt(segments[i])
-    const segmentPath = segments.slice(0, i + 1).join('/')
-
-    // First item in the list is the page which can't have layouts by itself
-    if (i === segments.length - 1) {
-      // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {page: () => require('${pagePath}')}]`
-      continue
-    }
-
-    // For segmentPath === '' avoid double `/`
-    const layoutPath = `${appDirPrefix}${segmentPath}/layout`
-    // For segmentPath === '' avoid double `/`
-    const loadingPath = `${appDirPrefix}${segmentPath}/loading`
-
-    const resolvedLayoutPath = await resolve(layoutPath)
-    const resolvedLoadingPath = await resolve(loadingPath)
+  async function createSubtreePropsFromSegmentPath(
+    segments: string[]
+  ): Promise<string> {
+    const segmentPath = segments.join('/')
 
     // Existing tree are the children of the current segment
-    const children = tree
+    const props: Record<string, string> = {}
 
-    tree = `['${segment}', {
-      ${
-        // When there are no children the current index is the page component
-        children ? `children: ${children},` : ''
+    // We need to resolve all parallel routes in this level.
+    const parallelSegments: [key: string, segment: string][] = []
+    if (segments.length === 0) {
+      parallelSegments.push(['children', ''])
+    } else {
+      parallelSegments.push(...resolveParallelSegments(segmentPath))
+    }
+
+    for (const [parallelKey, parallelSegment] of parallelSegments) {
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
+
+      if (parallelSegment === 'page') {
+        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+        const resolvedPagePath = await resolve(matchedPagePath)
+        if (resolvedPagePath) pages.push(resolvedPagePath)
+
+        // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
+        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
+          resolvedPagePath
+        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        continue
       }
-    }, {
-      ${
-        resolvedLayoutPath
-          ? `layout: () => require('${resolvedLayoutPath}'),`
-          : ''
+
+      const subtree = await createSubtreePropsFromSegmentPath([
+        ...segments,
+        parallelSegment,
+      ])
+
+      // `page` is not included here as it's added above.
+      const filePaths = await Promise.all(
+        Object.values(FILE_TYPES).map(async (file) => {
+          return [
+            file,
+            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+          ] as const
+        })
+      )
+
+      if (!rootLayout) {
+        rootLayout = filePaths.find(
+          ([type, path]) => type === 'layout' && !!path
+        )?.[1]
       }
-      ${
-        resolvedLoadingPath
-          ? `loading: () => require('${resolvedLoadingPath}'),`
-          : ''
-      }
-    }]`
+
+      props[parallelKey] = `[
+        '${parallelSegment}',
+        ${subtree},
+        {
+          ${filePaths
+            .filter(([, filePath]) => filePath !== undefined)
+            .map(([file, filePath]) => {
+              if (filePath === undefined) {
+                return ''
+              }
+              return `${
+                file === FILE_TYPES.layout
+                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
+                  : ''
+              }'${file}': () => require(${JSON.stringify(filePath)}),`
+            })
+            .join('\n')}
+        }
+      ]`
+    }
+
+    return `{
+      ${Object.entries(props)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(',\n')}
+    }`
   }
 
-  return `const tree = ${tree};`
+  const tree = await createSubtreePropsFromSegmentPath([])
+  return [`const tree = ${tree}.children;`, pages, rootLayout]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
-  return pathToTurnAbsolute.replace(/^private-next-app-dir/, appDir)
-}
-
-function removeExtensions(
-  extensions: string[],
-  pathToRemoveExtensions: string
-) {
-  const regex = new RegExp(`(${extensions.join('|')})$`.replace(/\./g, '\\.'))
-  return pathToRemoveExtensions.replace(regex, '')
+  return (
+    pathToTurnAbsolute
+      // Replace all POSIX path separators with the current OS path separator
+      .replace(/\//g, sep)
+      .replace(/^private-next-app-dir/, appDir)
+  )
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
   name: string
   pagePath: string
   appDir: string
+  appPaths: string[] | null
   pageExtensions: string[]
+  rootDir?: string
+  tsconfigPath?: string
+  isDev?: boolean
 }> = async function nextAppLoader() {
-  const { name, appDir, pagePath, pageExtensions } = this.getOptions() || {}
+  const {
+    name,
+    appDir,
+    appPaths,
+    pagePath,
+    pageExtensions,
+    rootDir,
+    tsconfigPath,
+    isDev,
+  } = this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
@@ -94,6 +168,24 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     extensions,
   }
   const resolve = this.getResolve(resolveOptions)
+
+  const normalizedAppPaths =
+    typeof appPaths === 'string' ? [appPaths] : appPaths || []
+  const resolveParallelSegments = (pathname: string) => {
+    const matched: Record<string, string> = {}
+    for (const path of normalizedAppPaths) {
+      if (path.startsWith(pathname + '/')) {
+        const restPath = path.slice(pathname.length + 1)
+
+        const matchedSegment = restPath.split('/')[0]
+        const matchedKey = matchedSegment.startsWith('@')
+          ? matchedSegment.slice(1)
+          : 'children'
+        matched[matchedKey] = matchedSegment
+      }
+    }
+    return Object.entries(matched)
+  }
 
   const resolver = async (pathname: string) => {
     try {
@@ -113,24 +205,50 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const treeCode = await createTreeCodeFromPath({
+  const [treeCode, pages, rootLayout] = await createTreeCodeFromPath({
     pagePath,
     resolve: resolver,
-    removeExt: (p) => removeExtensions(extensions, p),
+    resolveParallelSegments,
   })
+
+  if (!rootLayout) {
+    const errorMessage = `${chalk.bold(
+      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+
+    if (!isDev) {
+      // If we're building and missing a root layout, exit the build
+      Log.error(errorMessage)
+      process.exit(1)
+    } else {
+      // In dev we'll try to create a root layout
+      const createdRootLayout = await verifyRootLayout({
+        appDir: appDir,
+        dir: rootDir!,
+        tsconfigPath: tsconfigPath!,
+        pagePath,
+        pageExtensions,
+      })
+      if (!createdRootLayout) {
+        throw new Error(errorMessage)
+      }
+    }
+  }
 
   const result = `
     export ${treeCode}
+    export const pages = ${JSON.stringify(pages)}
 
-    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
-    export const HotReloader = ${
-      // Disable HotReloader component in production
-      this.mode === 'development'
-        ? `require('next/dist/client/components/hot-reloader.client.js').default`
-        : 'null'
-    }
+    export const AppRouter = require('next/dist/client/components/app-router.js').default
+    export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
+    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
 
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
+    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+
+    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/server.browser').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
 
