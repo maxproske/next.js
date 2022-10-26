@@ -16,24 +16,22 @@ let nodeServerAppPaths = {}
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin implements webpack.Plugin {
-  serverless: boolean
+export default class PagesManifestPlugin
+  implements webpack.WebpackPluginInstance
+{
   dev: boolean
   isEdgeRuntime: boolean
   appDirEnabled: boolean
 
   constructor({
-    serverless,
     dev,
     isEdgeRuntime,
     appDirEnabled,
   }: {
-    serverless: boolean
     dev: boolean
     isEdgeRuntime: boolean
     appDirEnabled: boolean
   }) {
-    this.serverless = serverless
     this.dev = dev
     this.isEdgeRuntime = isEdgeRuntime
     this.appDirEnabled = appDirEnabled
@@ -125,11 +123,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
 
   apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsPagesManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
