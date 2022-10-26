@@ -1,14 +1,14 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-  RemotePattern,
 } from '../shared/lib/image-config'
-
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import { WEB_VITALS } from '../shared/lib/utils'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -79,9 +79,11 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  allowMiddlewareResponseBody?: boolean
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
-  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -92,6 +94,7 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   profiling?: boolean
+  proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
@@ -114,15 +117,9 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
   runtime?: Exclude<ServerRuntime, undefined>
-  serverComponents?: boolean
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  images?: {
-    remotePatterns?: RemotePattern[]
-    unoptimized?: boolean
-    allowFutureImage?: boolean
-  }
   modularizeImports?: Record<
     string,
     {
@@ -146,6 +143,46 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+  /**
+   * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
+   * Full list of old polyfills is accessible here:
+   * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
+   */
+  fallbackNodePolyfills?: false
+  enableUndici?: boolean
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
+
+  // A list of packages that should be treated as external in the RSC server build
+  serverComponentsExternalPackages?: string[]
+
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
+
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    contextDirectory?: string
+    processCwd?: string
+  }
+}
+
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
 }
 
 /**
@@ -153,6 +190,17 @@ export interface ExperimentalConfig {
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -198,12 +246,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -371,13 +413,6 @@ export interface NextConfig extends Record<string, any> {
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
-
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
    * that are needed for deploying a production version of your application.
@@ -505,7 +540,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -515,17 +549,14 @@ export const defaultConfig: NextConfig = {
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
-    // TODO: change default in next major release (current v12.1.5)
-    legacyBrowsers: true,
-    browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    legacyBrowsers: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -536,6 +567,7 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
+    proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
@@ -549,12 +581,8 @@ export const defaultConfig: NextConfig = {
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
-    serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    images: {
-      remotePatterns: [],
-    },
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
@@ -564,6 +592,10 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     modularizeImports: undefined,
+    enableUndici: false,
+    adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 
