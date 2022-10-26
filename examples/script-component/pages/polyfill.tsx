@@ -1,4 +1,3 @@
-import type { RefObject } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 
