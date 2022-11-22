@@ -20,7 +20,6 @@
     "test": "cross-env HEADLESS=true pnpm testonly",
     "testonly": "pnpm jest --runInBand",
     "testheadless": "cross-env HEADLESS=true pnpm testonly",
-    "test-examples": "cross-env HEADLESS=true pnpm testonly test/e2e/examples/",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
