@@ -1,0 +1,90 @@
+{
+  "numFailedTestSuites": 1,
+  "numFailedTests": 1,
+  "numPassedTestSuites": 2,
+  "numPassedTests": 2,
+  "numPendingTestSuites": 0,
+  "numPendingTests": 0,
+  "numRuntimeErrorTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 3,
+  "numTotalTests": 3,
+  "openHandles": [],
+  "snapshot": {
+    "added": 0,
+    "didUpdate": false,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0
+  },
+  "startTime": 1670218319898,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["with-webassembly example"],
+          "failureMessages": [
+            "TypeError: Cannot read properties of undefined (reading 'readFile')\n    at Object.<anonymous> (/Users/max/dev/next.js/test/e2e/quest/test/utils.ts:50:23)\n    at Promise.then.completed (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/utils.js:391:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/utils.js:316:10)\n    at _callCircusTest (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/run.js:218:40)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at _runTest (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/run.js:155:3)\n    at _runTestsForDescribeBlock (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/run.js:66:9)\n    at _runTestsForDescribeBlock (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/run.js:60:9)\n    at run (/Users/max/dev/next.js/node_modules/.pnpm/jest-circus@27.5.1/node_modules/jest-circus/build/run.js:25:3)"
+          ],
+          "fullName": "with-webassembly example should compile and serve the index page correctly",
+          "location": null,
+          "status": "failed",
+          "title": "should compile and serve the index page correctly"
+        }
+      ],
+      "endTime": 1670218338196,
+      "message": "\u001b[1m\u001b[31m  \u001b[1m● \u001b[22m\u001b[1mwith-webassembly example › should compile and serve the index page correctly\u001b[39m\u001b[22m\n\n    TypeError: Cannot read properties of undefined (reading 'readFile')\n\u001b[2m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 48 |\u001b[39m   it(\u001b[32m`should compile and serve the index page correctly`\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m () \u001b[33m=>\u001b[39m {\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 49 |\u001b[39m     \u001b[36mtry\u001b[39m {\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[2m\u001b[39m\u001b[90m 50 |\u001b[39m     expect(\u001b[36mawait\u001b[39m next\u001b[33m.\u001b[39mreadFile(\u001b[32m'pnpm-lock.yaml'\u001b[39m))\u001b[33m.\u001b[39mtoBeTruthy()\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[2m\u001b[39m\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 51 |\u001b[39m\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 52 |\u001b[39m     expect(next\u001b[33m.\u001b[39mcliOutput)\u001b[33m.\u001b[39mtoMatch(\u001b[35m/Compiled successfully/\u001b[39m)\u001b[0m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 53 |\u001b[39m\u001b[0m\u001b[22m\n\u001b[2m\u001b[22m\n\u001b[2m      \u001b[2mat Object.<anonymous> (\u001b[22m\u001b[2me2e/quest/test/utils.ts\u001b[2m:50:23)\u001b[22m\u001b[2m\u001b[22m\n",
+      "name": "/Users/max/dev/next.js/test/e2e/quest/test/with-webassembly.test.ts",
+      "startTime": 1670218319973,
+      "status": "failed",
+      "summary": ""
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["hello-world example"],
+          "failureMessages": [],
+          "fullName": "hello-world example should compile and serve the index page correctly",
+          "location": null,
+          "status": "passed",
+          "title": "should compile and serve the index page correctly"
+        }
+      ],
+      "endTime": 1670218358465,
+      "message": "",
+      "name": "/Users/max/dev/next.js/test/e2e/quest/test/index.test.ts",
+      "startTime": 1670218338203,
+      "status": "passed",
+      "summary": ""
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["amp example"],
+          "failureMessages": [],
+          "fullName": "amp example should compile and serve the index page correctly",
+          "location": null,
+          "status": "passed",
+          "title": "should compile and serve the index page correctly"
+        }
+      ],
+      "endTime": 1670218380039,
+      "message": "",
+      "name": "/Users/max/dev/next.js/test/e2e/quest/test/amp.test.ts",
+      "startTime": 1670218358469,
+      "status": "passed",
+      "summary": ""
+    }
+  ],
+  "wasInterrupted": false
+}

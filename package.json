@@ -18,7 +18,7 @@
     "test-start": "cross-env NEXT_TEST_MODE=start pnpm testheadless",
     "test-deploy": "cross-env NEXT_TEST_MODE=deploy pnpm testheadless",
     "test": "cross-env HEADLESS=true pnpm testonly",
-    "testonly": "pnpm jest --runInBand",
+    "testonly": "pnpm jest --runInBand --json --outputFile=results.json",
     "testheadless": "cross-env HEADLESS=true pnpm testonly",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",

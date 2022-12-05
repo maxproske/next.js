@@ -143,6 +143,6 @@ export async function createNext(
     try {
       nextInstance.destroy()
     } catch (_) {}
-    process.exit(1)
+    // process.exit(1)
   }
 }
