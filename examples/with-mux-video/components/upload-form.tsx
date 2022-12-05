@@ -6,7 +6,7 @@ import Button from './button'
 import Spinner from './spinner'
 import ErrorMessage from './error-message'
 
-const fetcher = (url) => {
+const fetcher = (url: string) => {
   return fetch(url).then((res) => res.json())
 }
 
@@ -30,7 +30,6 @@ const UploadForm = () => {
     if (upload && upload.asset_id) {
       Router.push({
         pathname: `/asset/${upload.asset_id}`,
-        scroll: false,
       })
     }
   }, [upload])
@@ -54,8 +53,9 @@ const UploadForm = () => {
     }
   }
 
-  const startUpload = (evt) => {
+  const startUpload = () => {
     setIsUploading(true)
+
     const upload = UpChunk.createUpload({
       endpoint: createUpload,
       file: inputRef.current.files[0],
