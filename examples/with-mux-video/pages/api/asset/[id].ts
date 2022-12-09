@@ -17,7 +17,7 @@ export default async function assetHandler(
             id: asset.id,
             status: asset.status,
             errors: asset.errors,
-            playback_id: asset.playback_ids[0].id,
+            playback_id: asset.playback_ids![0].id,
           },
         })
       } catch (e) {

@@ -27,7 +27,7 @@ export default function Asset() {
     }
   }, [asset])
 
-  let errorMessage: string
+  let errorMessage: string = ''
 
   if (error) {
     errorMessage = 'Error fetching api'
